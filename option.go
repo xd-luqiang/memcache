@@ -170,7 +170,7 @@ func WithReportLoad(reportLoad func(reporter *Reporter, key string, value interf
 	}
 }
 
-func withLoadFunc(loadFunc LoadFunc) Option {
+func WithLoadFunc(loadFunc LoadFunc) Option {
 	return func(conf *config) {
 		conf.loadFunc = loadFunc
 	}
