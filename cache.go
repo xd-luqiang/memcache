@@ -3,8 +3,9 @@ package memcache
 import (
 	"context"
 	"fmt"
-	"memcache/pkg/task"
 	"time"
+
+	"github.com/xd-luqiang/memcache/pkg/task"
 )
 
 const (
