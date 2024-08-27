@@ -87,7 +87,6 @@ func (lc *lruCache) set(key string, value interface{}, ttl ...time.Duration) (ev
 	if value == nil {
 		curTtl = lc.protectTime
 	}
-	fmt.Println(key, curTtl)
 	element, ok := lc.elementMap[key]
 	if ok {
 		entry := lc.unwrap(element)
@@ -157,21 +156,47 @@ func (lc *lruCache) reset() {
 
 // Get gets the value of key from cache and returns value if found.
 // See Cache interface.
-func (lc *lruCache) Get(key string) (value interface{}, found bool) {
+func (lc *lruCache) Get(key string, deserializeF DeserializeFunc) (value interface{}, found bool) {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 
-	return lc.get(key)
+	value, found = lc.get(key)
+	if !found {
+		if lc.loadFunc != nil {
+			newVals, err := lc.loadFunc([]string{key}, deserializeF)
+			if err == nil && len(newVals) > 0 {
+				lc.set(key, newVals[0])
+				return value, found
+			}
+		}
+	}
+	return value, found
 }
 
-func (lc *lruCache) MGet(keys []string) (values []interface{}, founds []bool) {
+func (lc *lruCache) MGet(keys []string, deserializeF DeserializeFunc) (values []interface{}, founds []bool) {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
-
-	for _, key := range keys {
+	values = make([]interface{}, len(keys))
+	founds = make([]bool, len(keys))
+	mio := &MInOuput{}
+	for i, key := range keys {
 		value, found := lc.get(key)
-		values = append(values, value)
-		founds = append(founds, found)
+		founds[i] = found
+		if !found {
+			mio.Keys = append(mio.Keys, key)
+			mio.Indexes = append(mio.Indexes, i)
+		} else {
+			values[i] = value
+		}
+	}
+	if len(mio.Keys) > 0 && lc.loadFunc != nil {
+		newVals, err := lc.loadFunc(mio.Keys, deserializeF)
+		if err == nil && len(newVals) > 0 {
+			for i, index := range mio.Indexes {
+				values[index] = newVals[i]
+				lc.set(mio.Keys[i], newVals[i])
+			}
+		}
 	}
 	return values, founds
 }

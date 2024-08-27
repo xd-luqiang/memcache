@@ -29,8 +29,8 @@ type Cache interface {
 	// Notice that we won't remove expired keys in get method, so you should remove them manually or set a limit of keys.
 	// The reason why we won't remove expired keys in get method is for higher re-usability, because we often set a new value
 	// of expired key after getting it (so we can reuse the memory of entry).
-	Get(key string) (value interface{}, found bool)
-	MGet(keys []string) (values []interface{}, founds []bool)
+	Get(key string, deserializeF DeserializeFunc) (value interface{}, found bool)
+	MGet(keys []string, deserializeF DeserializeFunc) (values []interface{}, founds []bool)
 
 	// Set sets key and value to cache with ttl and returns evicted value if exists.
 	// See NoTTL if you want your key is never expired.

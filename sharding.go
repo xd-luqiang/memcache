@@ -1,7 +1,6 @@
 package memcache
 
 import (
-	"fmt"
 	"math/bits"
 	"sync"
 	"time"
@@ -42,8 +41,8 @@ func (sc *shardingCache) cacheOf(key string) Cache {
 }
 
 // Get gets the value of key from cache and returns value if found.
-func (sc *shardingCache) Get(key string) (value interface{}, found bool) {
-	return sc.cacheOf(key).Get(key)
+func (sc *shardingCache) Get(key string, deserializeF DeserializeFunc) (value interface{}, found bool) {
+	return sc.cacheOf(key).Get(key, deserializeF)
 }
 
 type MInOuput struct {
@@ -53,7 +52,7 @@ type MInOuput struct {
 	Ttls    []time.Duration
 }
 
-func (sc *shardingCache) MGet(keys []string) (values []interface{}, founds []bool) {
+func (sc *shardingCache) MGet(keys []string, deserializeF DeserializeFunc) (values []interface{}, founds []bool) {
 	cacheMap := make(map[Cache]MInOuput)
 	for i, key := range keys {
 		cache := sc.cacheOf(key)
@@ -68,7 +67,6 @@ func (sc *shardingCache) MGet(keys []string) (values []interface{}, founds []boo
 			cacheMap[cache] = mio
 		}
 	}
-	fmt.Println(cacheMap)
 	values = make([]interface{}, len(keys))
 	founds = make([]bool, len(keys))
 	wg := sync.WaitGroup{}
@@ -76,7 +74,7 @@ func (sc *shardingCache) MGet(keys []string) (values []interface{}, founds []boo
 	for cache, mio := range cacheMap {
 		go func(cache Cache, mio MInOuput) {
 			defer wg.Done()
-			curVals, curFds := cache.MGet(mio.Keys)
+			curVals, curFds := cache.MGet(mio.Keys, deserializeF)
 			for i, index := range mio.Indexes {
 				values[index] = curVals[i]
 				founds[index] = curFds[i]
@@ -122,7 +120,6 @@ func (sc *shardingCache) MSet(keys []string, values []interface{}, ttls ...time.
 			cacheMap[cache] = mio
 		}
 	}
-	fmt.Println(cacheMap)
 	evictedValues = make([]interface{}, len(keys))
 	wg := sync.WaitGroup{}
 	wg.Add(len(cacheMap))

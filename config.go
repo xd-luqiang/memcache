@@ -2,6 +2,11 @@ package memcache
 
 import "time"
 
+type (
+	DeserializeFunc func(string, []byte) interface{}
+	LoadFunc        func([]string, DeserializeFunc) ([]interface{}, error)
+)
+
 type config struct {
 	cacheName    string
 	cacheType    CacheType
@@ -26,6 +31,8 @@ type config struct {
 	reportHit    func(reporter *Reporter, key string, value interface{})
 	reportGC     func(reporter *Reporter, cost time.Duration, cleans int)
 	reportLoad   func(reporter *Reporter, key string, value interface{}, ttl time.Duration, err error)
+
+	loadFunc LoadFunc
 }
 
 func newDefaultConfig() *config {
@@ -45,5 +52,6 @@ func newDefaultConfig() *config {
 		recordHit:    true,
 		recordGC:     true,
 		recordLoad:   true,
+		loadFunc:     nil,
 	}
 }

@@ -133,8 +133,8 @@ func report(conf *config, cache Cache) (Cache, *Reporter) {
 }
 
 // Get gets the value of key from cache and returns value if found.
-func (rc *reportableCache) Get(key string) (value interface{}, found bool) {
-	value, found = rc.cache.Get(key)
+func (rc *reportableCache) Get(key string, deserializeF DeserializeFunc) (value interface{}, found bool) {
+	value, found = rc.cache.Get(key, deserializeF)
 
 	if found {
 		if rc.recordHit {
@@ -157,8 +157,8 @@ func (rc *reportableCache) Get(key string) (value interface{}, found bool) {
 	return value, found
 }
 
-func (rc *reportableCache) MGet(keys []string) (values []interface{}, founds []bool) {
-	values, founds = rc.cache.MGet(keys)
+func (rc *reportableCache) MGet(keys []string, deserializeF DeserializeFunc) (values []interface{}, founds []bool) {
+	values, founds = rc.cache.MGet(keys, deserializeF)
 	for i, found := range founds {
 		if found {
 			if rc.recordHit {
