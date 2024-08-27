@@ -3,9 +3,8 @@ package memcache
 import (
 	"context"
 	"fmt"
+	"memcache/pkg/task"
 	"time"
-
-	"github.com/xd-luqiang/memcache/pkg/task"
 )
 
 const (
@@ -30,10 +29,12 @@ type Cache interface {
 	// The reason why we won't remove expired keys in get method is for higher re-usability, because we often set a new value
 	// of expired key after getting it (so we can reuse the memory of entry).
 	Get(key string) (value interface{}, found bool)
+	MGet(keys []string) (values []interface{}, founds []bool)
 
 	// Set sets key and value to cache with ttl and returns evicted value if exists.
 	// See NoTTL if you want your key is never expired.
-	Set(key string, value interface{}, ttl time.Duration) (evictedValue interface{})
+	Set(key string, value interface{}, ttl ...time.Duration) (evictedValue interface{})
+	MSet(keys []string, values []interface{}, ttls ...time.Duration) (evictedValues []interface{})
 
 	// Remove removes key and returns the removed value of key.
 	// A nil value will be returned if key doesn't exist in cache.

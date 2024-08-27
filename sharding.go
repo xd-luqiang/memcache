@@ -1,7 +1,9 @@
 package memcache
 
 import (
+	"fmt"
 	"math/bits"
+	"sync"
 	"time"
 )
 
@@ -44,10 +46,94 @@ func (sc *shardingCache) Get(key string) (value interface{}, found bool) {
 	return sc.cacheOf(key).Get(key)
 }
 
+type MInOuput struct {
+	Keys    []string
+	Indexes []int
+	Values  []interface{}
+	Ttls    []time.Duration
+}
+
+func (sc *shardingCache) MGet(keys []string) (values []interface{}, founds []bool) {
+	cacheMap := make(map[Cache]MInOuput)
+	for i, key := range keys {
+		cache := sc.cacheOf(key)
+		if mio, ok := cacheMap[cache]; !ok {
+			cacheMap[cache] = MInOuput{
+				Keys:    []string{key},
+				Indexes: []int{i},
+			}
+		} else {
+			mio.Keys = append(mio.Keys, key)
+			mio.Indexes = append(mio.Indexes, i)
+			cacheMap[cache] = mio
+		}
+	}
+	fmt.Println(cacheMap)
+	values = make([]interface{}, len(keys))
+	founds = make([]bool, len(keys))
+	wg := sync.WaitGroup{}
+	wg.Add(len(cacheMap))
+	for cache, mio := range cacheMap {
+		go func(cache Cache, mio MInOuput) {
+			defer wg.Done()
+			curVals, curFds := cache.MGet(mio.Keys)
+			for i, index := range mio.Indexes {
+				values[index] = curVals[i]
+				founds[index] = curFds[i]
+			}
+		}(cache, mio)
+	}
+	wg.Wait()
+	return values, founds
+}
+
 // Set sets key and value to cache with ttl and returns evicted value if exists and unexpired.
 // See Cache interface.
-func (sc *shardingCache) Set(key string, value interface{}, ttl time.Duration) (oldValue interface{}) {
-	return sc.cacheOf(key).Set(key, value, ttl)
+func (sc *shardingCache) Set(key string, value interface{}, ttl ...time.Duration) (oldValue interface{}) {
+	return sc.cacheOf(key).Set(key, value, ttl...)
+}
+
+func (sc *shardingCache) MSet(keys []string, values []interface{}, ttls ...time.Duration) (evictedValues []interface{}) {
+	cacheMap := make(map[Cache]MInOuput)
+	for i, key := range keys {
+		cache := sc.cacheOf(key)
+		if mio, ok := cacheMap[cache]; !ok {
+			if len(ttls) > i {
+				cacheMap[cache] = MInOuput{
+					Keys:    []string{key},
+					Indexes: []int{i},
+					Values:  []interface{}{values[i]},
+					Ttls:    []time.Duration{ttls[i]},
+				}
+			} else {
+				cacheMap[cache] = MInOuput{
+					Keys:    []string{key},
+					Indexes: []int{i},
+					Values:  []interface{}{values[i]},
+				}
+			}
+		} else {
+			mio.Keys = append(mio.Keys, key)
+			mio.Indexes = append(mio.Indexes, i)
+			mio.Values = append(mio.Values, values[i])
+			if len(ttls) > i {
+				mio.Ttls = append(mio.Ttls, ttls[i])
+			}
+			cacheMap[cache] = mio
+		}
+	}
+	fmt.Println(cacheMap)
+	evictedValues = make([]interface{}, len(keys))
+	wg := sync.WaitGroup{}
+	wg.Add(len(cacheMap))
+	for cache, mio := range cacheMap {
+		go func(cache Cache, mio MInOuput) {
+			defer wg.Done()
+			evictedValues = cache.MSet(mio.Keys, mio.Values, mio.Ttls...)
+		}(cache, mio)
+	}
+	wg.Wait()
+	return evictedValues
 }
 
 // Remove removes key and returns the removed value of key.

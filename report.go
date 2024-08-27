@@ -157,10 +157,40 @@ func (rc *reportableCache) Get(key string) (value interface{}, found bool) {
 	return value, found
 }
 
+func (rc *reportableCache) MGet(keys []string) (values []interface{}, founds []bool) {
+	values, founds = rc.cache.MGet(keys)
+	for i, found := range founds {
+		if found {
+			if rc.recordHit {
+				rc.increaseHitCount()
+			}
+
+			if rc.reportHit != nil {
+				rc.reportHit(rc.Reporter, keys[i], values[i])
+			}
+		} else {
+			if rc.recordMissed {
+				rc.increaseMissedCount()
+			}
+
+			if rc.reportMissed != nil {
+				rc.reportMissed(rc.Reporter, keys[i])
+			}
+		}
+	}
+
+	return values, founds
+}
+
 // Set sets key and value to cache with ttl and returns evicted value if exists and unexpired.
 // See Cache interface.
-func (rc *reportableCache) Set(key string, value interface{}, ttl time.Duration) (evictedValue interface{}) {
-	return rc.cache.Set(key, value, ttl)
+func (rc *reportableCache) Set(key string, value interface{}, ttl ...time.Duration) (evictedValue interface{}) {
+	return rc.cache.Set(key, value, ttl...)
+}
+
+func (rc *reportableCache) MSet(keys []string, values []interface{}, ttls ...time.Duration) (evictedValues []interface{}) {
+	evictedValues = rc.cache.MSet(keys, values, ttls...)
+	return evictedValues
 }
 
 // Remove removes key and returns the removed value of key.

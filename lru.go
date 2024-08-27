@@ -2,6 +2,8 @@ package memcache
 
 import (
 	"container/list"
+	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 )
@@ -58,16 +60,38 @@ func (lc *lruCache) get(key string) (value interface{}, found bool) {
 	if entry.expired(0) {
 		return nil, false
 	}
-
 	lc.elementList.MoveToFront(element)
-	return entry.value, true
+	if entry.value == nil {
+		return nil, false
+	} else {
+		return *entry.value, true
+	}
 }
 
-func (lc *lruCache) set(key string, value interface{}, ttl time.Duration) (evictedValue interface{}) {
+func fluctuate(a time.Duration) time.Duration {
+	// 计算上下 20% 的浮动范围
+	fluctuation := int64(float64(a) * 0.2)
+
+	// 生成一个在 [-fluctuation, fluctuation] 范围内的随机浮动值
+	delta := rand.Int63n(2*fluctuation+1) - fluctuation
+
+	// 将浮动值添加到 a 的值上
+	return a + time.Duration(delta)
+}
+
+func (lc *lruCache) set(key string, value interface{}, ttl ...time.Duration) (evictedValue interface{}) {
+	curTtl := fluctuate(lc.expireTime)
+	if len(ttl) > 0 {
+		curTtl = ttl[0]
+	}
+	if value == nil {
+		curTtl = lc.protectTime
+	}
+	fmt.Println(key, curTtl)
 	element, ok := lc.elementMap[key]
 	if ok {
 		entry := lc.unwrap(element)
-		entry.setup(key, value, ttl)
+		entry.setup(key, &value, curTtl)
 
 		lc.elementList.MoveToFront(element)
 		return nil
@@ -77,7 +101,7 @@ func (lc *lruCache) set(key string, value interface{}, ttl time.Duration) (evict
 		evictedValue = lc.evict()
 	}
 
-	element = lc.elementList.PushFront(newEntry(key, value, ttl, lc.now))
+	element = lc.elementList.PushFront(newEntry(key, &value, curTtl, lc.now))
 	lc.elementMap[key] = element
 
 	return evictedValue
@@ -140,13 +164,42 @@ func (lc *lruCache) Get(key string) (value interface{}, found bool) {
 	return lc.get(key)
 }
 
-// Set sets key and value to cache with ttl and returns evicted value if exists and unexpired.
-// See Cache interface.
-func (lc *lruCache) Set(key string, value interface{}, ttl time.Duration) (evictedValue interface{}) {
+func (lc *lruCache) MGet(keys []string) (values []interface{}, founds []bool) {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 
-	return lc.set(key, value, ttl)
+	for _, key := range keys {
+		value, found := lc.get(key)
+		values = append(values, value)
+		founds = append(founds, found)
+	}
+	return values, founds
+}
+
+// Set sets key and value to cache with ttl and returns evicted value if exists and unexpired.
+// See Cache interface.
+func (lc *lruCache) Set(key string, value interface{}, ttl ...time.Duration) (evictedValue interface{}) {
+	lc.lock.Lock()
+	defer lc.lock.Unlock()
+
+	return lc.set(key, value, ttl...)
+}
+
+func (lc *lruCache) MSet(keys []string, values []interface{}, ttls ...time.Duration) (evictedValues []interface{}) {
+	lc.lock.Lock()
+	defer lc.lock.Unlock()
+	if len(keys) != len(values) {
+		fmt.Printf("cachego: keys and values must have the same length, key: %v, value: %v\n", keys, values)
+		return nil
+	}
+	for i := 0; i < len(keys); i++ {
+		if len(ttls) > i {
+			evictedValues = append(evictedValues, lc.set(keys[i], values[i], ttls[i]))
+		} else {
+			evictedValues = append(evictedValues, lc.set(keys[i], values[i]))
+		}
+	}
+	return evictedValues
 }
 
 // Remove removes key and returns the removed value of key.

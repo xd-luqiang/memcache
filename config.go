@@ -7,6 +7,8 @@ type config struct {
 	cacheType    CacheType
 	shardings    int
 	singleflight bool
+	expireTime   time.Duration
+	protectTime  time.Duration
 	gcDuration   time.Duration
 
 	maxScans   int
@@ -32,6 +34,8 @@ func newDefaultConfig() *config {
 		cacheType:    standard,
 		shardings:    0,
 		singleflight: true,
+		expireTime:   60 * time.Second,
+		protectTime:  10 * time.Second,
 		gcDuration:   10 * time.Minute,
 		maxScans:     10000,
 		maxEntries:   100000,

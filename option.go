@@ -57,6 +57,19 @@ func WithDisableSingleflight() Option {
 	}
 }
 
+func WithExpire(expireTime time.Duration) Option {
+	return func(conf *config) {
+		conf.expireTime = expireTime
+		conf.protectTime = expireTime / 4
+	}
+}
+
+func WithProtect(protectTime time.Duration) Option {
+	return func(conf *config) {
+		conf.protectTime = protectTime
+	}
+}
+
 // WithGC returns an option setting the duration of cache gc.
 // Negative value means no gc.
 func WithGC(gcDuration time.Duration) Option {

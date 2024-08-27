@@ -4,12 +4,12 @@ import "time"
 
 type entry struct {
 	key        string
-	value      interface{}
+	value      *interface{}
 	expiration int64 // Time in nanosecond, valid util 2262 year (enough, uh?)
 	now        func() int64
 }
 
-func newEntry(key string, value interface{}, ttl time.Duration, now func() int64) *entry {
+func newEntry(key string, value *interface{}, ttl time.Duration, now func() int64) *entry {
 	e := &entry{
 		now: now,
 	}
@@ -18,7 +18,7 @@ func newEntry(key string, value interface{}, ttl time.Duration, now func() int64
 	return e
 }
 
-func (e *entry) setup(key string, value interface{}, ttl time.Duration) {
+func (e *entry) setup(key string, value *interface{}, ttl time.Duration) {
 	e.key = key
 	e.value = value
 	e.expiration = 0
