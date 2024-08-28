@@ -87,6 +87,9 @@ func (lc *lruCache) set(key string, value interface{}, ttl ...time.Duration) (ev
 	if value == nil {
 		curTtl = lc.protectTime
 	}
+	if curTtl <= 0 {
+		return nil
+	}
 	element, ok := lc.elementMap[key]
 	if ok {
 		entry := lc.unwrap(element)
