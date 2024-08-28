@@ -1,7 +1,6 @@
 package memcache
 
 import (
-	"fmt"
 	"math/bits"
 	"sync"
 	"time"
@@ -68,7 +67,6 @@ func (sc *shardingCache) MGet(keys []string) (values []interface{}, founds []boo
 			cacheMap[cache] = mio
 		}
 	}
-	fmt.Println(cacheMap)
 	values = make([]interface{}, len(keys))
 	founds = make([]bool, len(keys))
 	wg := sync.WaitGroup{}
@@ -122,7 +120,6 @@ func (sc *shardingCache) MSet(keys []string, values []interface{}, ttls ...time.
 			cacheMap[cache] = mio
 		}
 	}
-	fmt.Println(cacheMap)
 	evictedValues = make([]interface{}, len(keys))
 	wg := sync.WaitGroup{}
 	wg.Add(len(cacheMap))
