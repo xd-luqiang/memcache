@@ -68,19 +68,17 @@ func (lc *lruCache) get(key string) (value interface{}, found bool) {
 	}
 }
 
-func fluctuate(a time.Duration) time.Duration {
-	// 计算上下 20% 的浮动范围
-	fluctuation := int64(float64(a) * 0.2)
-
+func (lc *lruCache) getExpire() time.Duration {
+	if lc.expireOffset == 0 {
+		return lc.expireTime
+	}
 	// 生成一个在 [-fluctuation, fluctuation] 范围内的随机浮动值
-	delta := rand.Int63n(2*fluctuation+1) - fluctuation
-
-	// 将浮动值添加到 a 的值上
-	return a + time.Duration(delta)
+	delta := rand.Int63n(2*int64(lc.expireOffset)+1) - int64(lc.expireOffset)
+	return lc.expireTime + time.Duration(delta)
 }
 
 func (lc *lruCache) set(key string, value interface{}, ttl ...time.Duration) (evictedValue interface{}) {
-	curTtl := fluctuate(lc.expireTime)
+	curTtl := lc.getExpire()
 	if len(ttl) > 0 {
 		curTtl = ttl[0]
 	}

@@ -57,10 +57,16 @@ func WithDisableSingleflight() Option {
 	}
 }
 
-func WithExpire(expireTime time.Duration) Option {
+func WithExpire(ttl ...time.Duration) Option {
 	return func(conf *config) {
-		conf.expireTime = expireTime
-		conf.protectTime = expireTime / 4
+		if len(ttl) > 0 {
+			conf.expireTime = ttl[0]
+		}
+		if len(ttl) > 1 {
+			if ttl[1] < ttl[0] {
+				conf.expireOffset = ttl[1]
+			}
+		}
 	}
 }
 

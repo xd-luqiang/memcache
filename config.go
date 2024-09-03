@@ -8,6 +8,7 @@ type config struct {
 	shardings    int
 	singleflight bool
 	expireTime   time.Duration
+	expireOffset time.Duration
 	protectTime  time.Duration
 	gcDuration   time.Duration
 
